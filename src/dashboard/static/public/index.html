@@ -229,6 +229,74 @@
   /* ── Empty states ────────────────────────────────────────────────── */
   .empty { padding: 40px; text-align: center; color: var(--text3); }
   .empty-icon { font-size: 32px; opacity: 0.3; margin-bottom: 10px; }
+
+  /* ── EQ Status Card ─────────────────────────────────────────────── */
+  .eq-status-card {
+    border-radius: 14px; padding: 24px 28px;
+    display: flex; align-items: center; gap: 24px;
+    transition: all 0.4s ease;
+    margin-bottom: 18px;
+  }
+  .eq-status-card.clear {
+    background: linear-gradient(135deg, hsla(155,65%,10%,0.8), hsla(155,65%,6%,0.6));
+    border: 1px solid hsla(155,65%,40%,0.35);
+  }
+  .eq-status-card.warning {
+    background: linear-gradient(135deg, hsla(38,90%,12%,0.9), hsla(38,90%,7%,0.7));
+    border: 1px solid hsla(38,90%,50%,0.5);
+    animation: warnpulse 2s ease-in-out infinite;
+  }
+  .eq-status-card.critical {
+    background: linear-gradient(135deg, hsla(5,78%,14%,0.95), hsla(5,78%,8%,0.8));
+    border: 1px solid hsla(5,78%,55%,0.7);
+    animation: critpulse 1s ease-in-out infinite;
+  }
+  @keyframes warnpulse { 0%,100%{border-color:hsla(38,90%,50%,0.5)} 50%{border-color:hsla(38,90%,70%,0.9)} }
+  @keyframes critpulse { 0%,100%{border-color:hsla(5,78%,55%,0.7)} 50%{border-color:hsla(5,78%,80%,1)} }
+  .eq-status-icon { font-size: 52px; flex-shrink: 0; line-height: 1; }
+  .eq-status-body { flex: 1; }
+  .eq-status-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .eq-status-label.clear   { color: var(--green); }
+  .eq-status-label.warning { color: var(--amber); }
+  .eq-status-label.critical{ color: var(--red); }
+  .eq-status-title { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 8px; }
+  .eq-status-title.clear    { color: var(--green); }
+  .eq-status-title.warning  { color: var(--amber); }
+  .eq-status-title.critical { color: var(--red); }
+  .eq-status-detail { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  .eq-status-meta { flex-shrink: 0; text-align: right; }
+  .eq-status-updated { font-size: 11px; color: var(--text3); }
+  .eq-status-count {
+    font-size: 36px; font-weight: 800;
+    font-family: var(--mono); margin-top: 4px;
+  }
+  .eq-status-count.clear    { color: var(--green); }
+  .eq-status-count.critical { color: var(--red); }
+
+  /* ── Climate AI stub ─────────────────────────────────────────────── */
+  .coming-soon-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px;
+    background: hsla(255,68%,64%,0.12); color: var(--purple);
+    border: 1px solid hsla(255,68%,64%,0.25);
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .pipeline-step {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .pipeline-step:last-child { border-bottom: none; }
+  .pipeline-step-num {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    background: var(--bg3); border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--text3);
+  }
+  .pipeline-step-body { flex: 1; }
+  .pipeline-step-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .pipeline-step-desc  { font-size: 12px; color: var(--text3); line-height: 1.5; }
+  .pipeline-step.done .pipeline-step-num { background: var(--green-dim, hsla(155,65%,20%,0.4)); border-color: var(--green); color: var(--green); }
+  .pipeline-step.active .pipeline-step-num { background: hsla(210,85%,30%,0.4); border-color: var(--accent); color: var(--accent); }
 </style>
 </head>
 <body>
@@ -241,6 +309,7 @@
     <button class="nav-link" onclick="showSection('air')">🌬️ Air Quality</button>
     <button class="nav-link" onclick="showSection('birds')">🐦 BirdNET</button>
     <button class="nav-link" onclick="showSection('weather')">🌤️ Weather</button>
+    <button class="nav-link" onclick="showSection('climate-ai')">🧠 Climate AI</button>
     <button class="nav-link" onclick="showSection('about')">ℹ️ About</button>
   </nav>
   <div class="header-right">
@@ -292,6 +361,25 @@
 
   <!-- Seismic Section -->
   <div class="section active" id="section-seismic">
+
+    <!-- ── Prominent EQ Alarm Status ──────────────────────────────────────── -->
+    <div class="eq-status-card clear" id="eq-status-card">
+      <div class="eq-status-icon" id="eq-status-icon">🛡️</div>
+      <div class="eq-status-body">
+        <div class="eq-status-label clear" id="eq-status-label">Earthquake Alarm Status</div>
+        <div class="eq-status-title clear" id="eq-status-title">No Current Earthquake Alarm</div>
+        <div class="eq-status-detail" id="eq-status-detail">
+          Our seismograph is running and no seismic alarm is currently active.
+          This card will turn red and flash if an earthquake alert is detected.
+        </div>
+      </div>
+      <div class="eq-status-meta">
+        <div class="eq-status-updated" id="eq-status-updated">Updated —</div>
+        <div class="eq-status-count clear" id="eq-status-count">0</div>
+        <div style="font-size:11px;color:var(--text3)">alerts (24h)</div>
+      </div>
+    </div>
+
     <div class="grid-2" style="margin-bottom:18px">
 
       <!-- Live RSAM card -->
@@ -317,26 +405,24 @@
         <canvas id="seismo-canvas"></canvas>
       </div>
 
-      <!-- EQ alert metrics -->
-      <div class="card">
-        <div class="card-hdr">
-          <span class="card-title">Alert Threshold Status</span>
-          <span class="card-badge live">● Real-time</span>
-        </div>
-        <div class="metric-big" id="eq-alert-count" style="color:var(--green)">0</div>
-        <div class="metric-label" id="eq-alert-label">EQ alerts in the last 24 hours</div>
-        <div class="metric-trend ok" id="eq-trend">Station nominal</div>
-      </div>
-
       <!-- Last event -->
       <div class="card">
-        <div class="card-hdr">
-          <span class="card-title">Last Detected Event</span>
-        </div>
+        <div class="card-hdr"><span class="card-title">Last Detected Event</span></div>
         <div id="last-eq-detail">
           <div class="metric-big" style="color:var(--text3)">—</div>
           <div class="metric-label">No recent events</div>
         </div>
+      </div>
+
+      <!-- 24h count -->
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title">24-Hour Event Log</span>
+          <span class="card-badge live">● Real-time</span>
+        </div>
+        <div class="metric-big" id="eq-alert-count" style="color:var(--green)">0</div>
+        <div class="metric-label">alerts detected by our sensor</div>
+        <div class="metric-trend ok" id="eq-trend">Station nominal</div>
       </div>
     </div>
 
@@ -418,6 +504,98 @@
     </div>
   </div>
 
+  <!-- Climate AI Section (stub — data pipeline in progress) -->
+  <div class="section" id="section-climate-ai">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-0.03em">🧠 Environmental Intelligence</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:4px">AI-derived observations from the Mosswood sensor network</div>
+      </div>
+      <span class="coming-soon-badge">🔬 In Development</span>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:18px">
+      <!-- What this will be -->
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">What This Will Show</span></div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px">
+          This section will publish AI-generated observations derived from continuous analysis
+          of all environmental sensors — AirGradient, weather station, soil moisture, and
+          BirdNET acoustic data. These are <strong>not alerts</strong>; they are research-grade
+          summaries and anomaly reports.
+        </p>
+        <div style="display:flex;flex-direction:column">
+          <div class="pipeline-step done">
+            <div class="pipeline-step-num">✓</div>
+            <div class="pipeline-step-body">
+              <div class="pipeline-step-title">Sensors Publishing</div>
+              <div class="pipeline-step-desc">AirGradient, Raspberry Shake, BirdNET, and environmental station are live on MQTT.</div>
+            </div>
+          </div>
+          <div class="pipeline-step done">
+            <div class="pipeline-step-num">✓</div>
+            <div class="pipeline-step-body">
+              <div class="pipeline-step-title">Data Archiving</div>
+              <div class="pipeline-step-desc">All readings are persisted to InfluxDB for time-series analysis.</div>
+            </div>
+          </div>
+          <div class="pipeline-step active">
+            <div class="pipeline-step-num">→</div>
+            <div class="pipeline-step-body">
+              <div class="pipeline-step-title">AI Agent Development</div>
+              <div class="pipeline-step-desc">Building the cross-modal correlation agent — connects seismic noise floor, air quality trends, bird behaviour, and microclimate data.</div>
+            </div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-step-num">4</div>
+            <div class="pipeline-step-body">
+              <div class="pipeline-step-title">Public Observations Feed</div>
+              <div class="pipeline-step-desc">AI-authored summaries will appear here — e.g. "Unusual PM2.5 spike correlates with offshore wind shift and reduced bird activity."</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview cards: what will render here -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card" style="opacity:0.45;pointer-events:none">
+          <div class="card-hdr">
+            <span class="card-title">Latest AI Observation</span>
+            <span class="coming-soon-badge" style="font-size:9px;padding:2px 8px">Pending</span>
+          </div>
+          <div style="font-size:13px;color:var(--text3);font-style:italic;line-height:1.6">
+            "Soil moisture in zones 2–4 has declined 18% over 72h despite no irrigation schedule gaps.
+            Cross-referencing with weather data suggests elevated evapotranspiration during this week's
+            heat event."
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Source: BerkeleyGarden AI · Not yet live</div>
+        </div>
+        <div class="card" style="opacity:0.45;pointer-events:none">
+          <div class="card-hdr">
+            <span class="card-title">Microclimate Trend</span>
+            <span class="coming-soon-badge" style="font-size:9px;padding:2px 8px">Pending</span>
+          </div>
+          <div style="font-size:13px;color:var(--text3);font-style:italic;line-height:1.6">
+            "CO₂ concentrations peak between 08:00–10:00 local time correlating with morning
+            commuter traffic on Telegraph Ave. Outdoor levels return to baseline by 11:30."
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Source: BerkeleyEnvironmental AI · Not yet live</div>
+        </div>
+        <div class="card" style="opacity:0.45;pointer-events:none">
+          <div class="card-hdr">
+            <span class="card-title">Acoustic + Environmental Correlation</span>
+            <span class="coming-soon-badge" style="font-size:9px;padding:2px 8px">Pending</span>
+          </div>
+          <div style="font-size:13px;color:var(--text3);font-style:italic;line-height:1.6">
+            "BirdNET detections drop 60% on days when PM2.5 exceeds 25 µg/m³, consistent with
+            literature on avian sensitivity to particulate matter."
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:10px">Source: CrossModal AI · Not yet live</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- About Section -->
   <div class="section" id="section-about">
     <div class="grid-2">
@@ -471,7 +649,7 @@ let _ws = null;
 const _rsam_history = new Array(120).fill(null); // 2 min of readings
 
 // ── Navigation ────────────────────────────────────────────────────────────────
-const SECTIONS = ['seismic','air','birds','weather','about'];
+const SECTIONS = ['seismic','air','birds','weather','climate-ai','about'];
 function showSection(name) {
   SECTIONS.forEach(s => {
     document.getElementById(`section-${s}`)?.classList.toggle('active', s === name);
@@ -581,6 +759,61 @@ function updateRSAMDisplay(data) {
 
 function renderSeismic() {
   const alerts = _seismic.alerts;
+
+  // ── Prominent EQ Status Card ──────────────────────────────────────────────
+  const statusCard  = document.getElementById('eq-status-card');
+  const statusIcon  = document.getElementById('eq-status-icon');
+  const statusLabel = document.getElementById('eq-status-label');
+  const statusTitle = document.getElementById('eq-status-title');
+  const statusDetail= document.getElementById('eq-status-detail');
+  const statusCount = document.getElementById('eq-status-count');
+
+  const activeAlerts = alerts.filter(a => a.status === 'triggered' || a.status === 'confirmed');
+  const highestSev   = activeAlerts.find(a => a.severity === 'critical')
+                    || activeAlerts.find(a => a.severity === 'warning')
+                    || null;
+
+  statusCount.textContent = alerts.length;
+  document.getElementById('eq-status-updated').textContent =
+    'Updated ' + new Date().toLocaleTimeString();
+
+  if (!highestSev) {
+    statusCard.className  = 'eq-status-card clear';
+    statusIcon.textContent = '🛡️';
+    statusLabel.className = 'eq-status-label clear';
+    statusLabel.textContent = 'Earthquake Alarm Status';
+    statusTitle.className = 'eq-status-title clear';
+    statusTitle.textContent = 'No Current Earthquake Alarm';
+    statusDetail.textContent =
+      'Our seismograph is running and no seismic alarm is currently active. ' +
+      'This card will turn red and flash if an earthquake alert is detected.';
+    statusCount.className = 'eq-status-count clear';
+  } else if (highestSev.severity === 'warning') {
+    statusCard.className  = 'eq-status-card warning';
+    statusIcon.textContent = '⚠️';
+    statusLabel.className = 'eq-status-label warning';
+    statusLabel.textContent = '⚠ Seismic Warning Active';
+    statusTitle.className = 'eq-status-title warning';
+    statusTitle.textContent = `Seismic Warning — Est. M${highestSev.estimated_magnitude?.toFixed(1) ?? '?'}`;
+    statusDetail.textContent =
+      `STA/LTA ratio ${highestSev.sta_lta_ratio?.toFixed(2)} · Station ${highestSev.station} · ` +
+      (highestSev.seconds_until_s_wave ? `S-wave in ~${highestSev.seconds_until_s_wave.toFixed(0)}s` : 'S-wave arrival unknown');
+    statusCount.className = 'eq-status-count';
+    statusCount.style.color = 'var(--amber)';
+  } else {
+    statusCard.className  = 'eq-status-card critical';
+    statusIcon.textContent = '🚨';
+    statusLabel.className = 'eq-status-label critical';
+    statusLabel.textContent = '🚨 EARTHQUAKE ALARM — ACT NOW';
+    statusTitle.className = 'eq-status-title critical';
+    statusTitle.textContent = `Earthquake Imminent — Est. M${highestSev.estimated_magnitude?.toFixed(1) ?? '?'}`;
+    statusDetail.textContent =
+      `STA/LTA ratio ${highestSev.sta_lta_ratio?.toFixed(2)} · Station ${highestSev.station} · ` +
+      (highestSev.seconds_until_s_wave ? `S-wave in ~${highestSev.seconds_until_s_wave.toFixed(0)} seconds — drop, cover, hold on` : 'Impact imminent');
+    statusCount.className = 'eq-status-count critical';
+  }
+
+  // ── Count + trend (smaller card) ─────────────────────────────────────────
   document.getElementById('eq-alert-count').textContent = alerts.length;
   document.getElementById('eq-alert-count').style.color = alerts.length > 0 ? 'var(--red)' : 'var(--green)';
   document.getElementById('eq-trend').textContent = alerts.length > 0 ? `${alerts.length} alert(s) detected` : 'Station nominal';
