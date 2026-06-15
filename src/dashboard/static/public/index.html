@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mosswood Science — Live Environmental & Seismic Data</title>
+<meta name="description" content="Real-time seismograph, air quality, bird detections, and environmental data from the Mosswood property in Berkeley, CA.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg:     #06090f;
+    --bg1:    #0a0f1c;
+    --bg2:    #0f1625;
+    --bg3:    #141d2e;
+    --border: #192030;
+    --border2:#222f48;
+    --text1:  #dde3f5;
+    --text2:  #7a88aa;
+    --text3:  #3a4560;
+    --accent: hsl(210, 85%, 58%);
+    --accent2:hsl(195, 80%, 55%);
+    --green:  hsl(155, 65%, 48%);
+    --amber:  hsl(40,  88%, 56%);
+    --red:    hsl(5,   78%, 58%);
+    --purple: hsl(255, 68%, 64%);
+    --mono:   'JetBrains Mono', monospace;
+    --font:   'Inter', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text1);
+    min-height: 100vh;
+  }
+
+  /* ── Header ──────────────────────────────────────────────────────── */
+  header {
+    background: rgba(6,9,15,0.94);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+    padding: 0 32px;
+    height: 60px;
+    display: flex; align-items: center; gap: 24px;
+  }
+  .logo {
+    font-size: 18px; font-weight: 800; letter-spacing: -0.04em;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    white-space: nowrap;
+  }
+  .logo-sub { font-size: 13px; color: var(--text3); font-weight: 400; margin-left: -8px; }
+  nav { display: flex; gap: 2px; }
+  .nav-link {
+    padding: 6px 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; color: var(--text2);
+    cursor: pointer; transition: all 0.15s;
+    border: none; background: none;
+  }
+  .nav-link:hover { background: var(--bg2); color: var(--text1); }
+  .nav-link.active { background: hsla(210,85%,58%,0.12); color: var(--accent); }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+  .live-indicator { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 8px var(--green); animation: livepulse 2s infinite;
+  }
+  @keyframes livepulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .header-time { font-family: var(--mono); font-size: 13px; color: var(--text2); }
+  .location-tag {
+    font-size: 11px; padding: 3px 10px; border-radius: 20px;
+    background: var(--bg2); border: 1px solid var(--border2);
+    color: var(--text2);
+  }
+
+  /* ── Hero banner ─────────────────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(180deg, var(--bg1) 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 40px 32px 32px;
+    display: flex; align-items: flex-end; gap: 32px;
+    flex-wrap: wrap;
+  }
+  .hero-left { flex: 1; min-width: 260px; }
+  .hero-title { font-size: 32px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.2; margin-bottom: 10px; }
+  .hero-title .hl { color: var(--accent); }
+  .hero-desc { font-size: 14px; color: var(--text2); line-height: 1.7; max-width: 500px; }
+  .hero-stats { display: flex; gap: 24px; flex-wrap: wrap; }
+  .hero-stat { text-align: center; }
+  .hero-stat-val { font-size: 28px; font-weight: 800; color: var(--text1); letter-spacing: -0.03em; }
+  .hero-stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); margin-top: 3px; }
+
+  /* ── EQ Alert Banner ─────────────────────────────────────────────── */
+  #eq-alert-banner {
+    display: none;
+    background: linear-gradient(90deg, hsla(5,78%,15%,0.95), hsla(5,78%,10%,0.95));
+    border: 1px solid hsla(5,78%,50%,0.6);
+    padding: 16px 32px; margin: 16px 32px;
+    border-radius: 12px;
+    animation: alertpulse 1s ease-in-out infinite;
+  }
+  @keyframes alertpulse { 0%,100%{border-color:hsla(5,78%,50%,0.6)} 50%{border-color:hsla(5,78%,80%,0.9)} }
+  #eq-alert-banner.show { display: flex; align-items: center; gap: 16px; }
+  .eq-banner-icon { font-size: 32px; }
+  .eq-banner-text strong { font-size: 16px; color: var(--red); display: block; margin-bottom: 4px; }
+  .eq-banner-text span { font-size: 13px; color: var(--text2); }
+
+  /* ── Main content ─────────────────────────────────────────────────── */
+  .content { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+  /* ── Section visibility ──────────────────────────────────────────── */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ── Grid ────────────────────────────────────────────────────────── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+
+  /* ── Card ────────────────────────────────────────────────────────── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .card:hover { border-color: var(--border2); box-shadow: 0 0 0 1px var(--border2); }
+  .card-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); }
+  .card-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+  }
+  .card-badge.live { background: hsla(155,65%,48%,0.15); color: var(--green); border: 1px solid hsla(155,65%,48%,0.3); }
+  .card-badge.usgs { background: hsla(210,85%,58%,0.12); color: var(--accent); border: 1px solid hsla(210,85%,58%,0.2); }
+  .metric-big { font-size: 42px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  .metric-unit { font-size: 16px; font-weight: 500; color: var(--text2); }
+  .metric-label { font-size: 12px; color: var(--text3); margin-top: 8px; }
+  .metric-trend { font-size: 12px; margin-top: 6px; }
+  .metric-trend.up { color: var(--amber); }
+  .metric-trend.ok { color: var(--green); }
+
+  /* ── Seismograph ─────────────────────────────────────────────────── */
+  .seismo-card { grid-column: span 2; }
+  #seismo-canvas {
+    width: 100%; height: 160px;
+    background: var(--bg1); border-radius: 10px;
+    display: block; margin-top: 12px;
+  }
+  .rsam-row { display: flex; gap: 24px; margin-bottom: 12px; flex-wrap: wrap; }
+  .rsam-stat { }
+  .rsam-val { font-family: var(--mono); font-size: 24px; font-weight: 600; }
+  .rsam-label { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* ── EQ log table ────────────────────────────────────────────────── */
+  .eq-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .eq-table th { text-align: left; padding: 8px 12px; color: var(--text3); font-size: 11px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border); }
+  .eq-table td { padding: 12px 12px; border-bottom: 1px solid var(--border); }
+  .eq-table tr:last-child td { border-bottom: none; }
+  .eq-table tr:hover td { background: var(--bg3); }
+  .mag-chip {
+    display: inline-block; padding: 3px 8px; border-radius: 6px;
+    font-family: var(--mono); font-weight: 700; font-size: 13px;
+  }
+  .mag-chip.low  { background: hsla(155,60%,30%,0.3); color: var(--green); }
+  .mag-chip.mid  { background: hsla(40,80%,30%,0.3);  color: var(--amber); }
+  .mag-chip.high { background: hsla(5,70%,30%,0.3);   color: var(--red); }
+  .sev-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .sev-dot.info { background: var(--text3); }
+  .sev-dot.warning { background: var(--amber); }
+  .sev-dot.critical { background: var(--red); }
+
+  /* ── Air quality bars ────────────────────────────────────────────── */
+  .aqi-meter { margin-bottom: 16px; }
+  .aqi-header { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .aqi-name { font-weight: 600; }
+  .aqi-val { font-family: var(--mono); color: var(--text2); }
+  .aqi-track { height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+  .aqi-fill { height: 8px; border-radius: 4px; transition: width 0.8s ease; }
+  .aqi-fill.good      { background: linear-gradient(90deg, var(--green), hsl(155,65%,60%)); }
+  .aqi-fill.moderate  { background: linear-gradient(90deg, var(--amber), hsl(40,88%,70%)); }
+  .aqi-fill.unhealthy { background: linear-gradient(90deg, var(--red), hsl(5,78%,70%)); }
+  .aqi-legend { display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+  .aqi-legend-item { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 5px; }
+  .aqi-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── BirdNET list ────────────────────────────────────────────────── */
+  .bird-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px;
+    transition: all 0.15s;
+  }
+  .bird-card:hover { border-color: var(--border2); }
+  .bird-icon { font-size: 24px; }
+  .bird-info { flex: 1; }
+  .bird-common { font-size: 14px; font-weight: 600; }
+  .bird-sci { font-size: 12px; color: var(--text2); font-style: italic; }
+  .bird-conf-bar { flex-shrink: 0; text-align: right; }
+  .bird-conf-val { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--green); }
+  .bird-time-label { font-size: 11px; color: var(--text3); }
+
+  /* ── Env station grid ────────────────────────────────────────────── */
+  .env-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+  .env-tile {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .env-tile-icon { font-size: 22px; margin-bottom: 4px; }
+  .env-tile-val { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; font-family: var(--mono); }
+  .env-tile-label { font-size: 11px; color: var(--text3); }
+  .env-tile-unit { font-size: 13px; color: var(--text2); }
+
+  /* ── About section ───────────────────────────────────────────────── */
+  .about-prose { max-width: 720px; line-height: 1.75; color: var(--text2); }
+  .about-prose h3 { font-size: 16px; font-weight: 700; color: var(--text1); margin: 24px 0 10px; }
+  .about-prose p { font-size: 14px; margin-bottom: 12px; }
+  .sensor-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 16px; }
+  .sensor-table th { text-align: left; padding: 8px 12px; background: var(--bg3); border: 1px solid var(--border); color: var(--text2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .sensor-table td { padding: 10px 12px; border: 1px solid var(--border); }
+
+  /* ── Empty states ────────────────────────────────────────────────── */
+  .empty { padding: 40px; text-align: center; color: var(--text3); }
+  .empty-icon { font-size: 32px; opacity: 0.3; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">Mosswood<span style="-webkit-text-fill-color:var(--text2);font-weight:400;">.</span>Science</div>
+  <nav>
+    <button class="nav-link active" onclick="showSection('seismic')">🌍 Seismic</button>
+    <button class="nav-link" onclick="showSection('air')">🌬️ Air Quality</button>
+    <button class="nav-link" onclick="showSection('birds')">🐦 BirdNET</button>
+    <button class="nav-link" onclick="showSection('weather')">🌤️ Weather</button>
+    <button class="nav-link" onclick="showSection('about')">ℹ️ About</button>
+  </nav>
+  <div class="header-right">
+    <div class="live-indicator">
+      <div class="live-dot" id="live-dot"></div>
+      <span id="live-label" style="color:var(--text2)">Connecting…</span>
+    </div>
+    <div class="header-time" id="clock">--:--:--</div>
+    <div class="location-tag">📍 Berkeley, CA</div>
+  </div>
+</header>
+
+<!-- ── EQ Alert Banner ─────────────────────────────────────────────────────── -->
+<div id="eq-alert-banner">
+  <div class="eq-banner-icon">🚨</div>
+  <div class="eq-banner-text">
+    <strong id="eq-banner-title">Seismic Alert</strong>
+    <span id="eq-banner-detail">—</span>
+  </div>
+</div>
+
+<!-- ── Hero ────────────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-left">
+    <div class="hero-title">Live Data from<br><span class="hl">Mosswood Property</span></div>
+    <div class="hero-desc">
+      Continuous sensor telemetry from a private citizen science station in Berkeley, CA.
+      Seismograph, air quality, weather, and acoustic bird detection — all open data.
+    </div>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-val" id="stat-uptime">—</div>
+      <div class="hero-stat-label">Station Uptime</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-val" id="stat-birds-today">—</div>
+      <div class="hero-stat-label">Bird Detections Today</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-val" id="stat-eq-today">—</div>
+      <div class="hero-stat-label">EQ Alerts (24h)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Content ─────────────────────────────────────────────────────────────── -->
+<div class="content">
+
+  <!-- Seismic Section -->
+  <div class="section active" id="section-seismic">
+    <div class="grid-2" style="margin-bottom:18px">
+
+      <!-- Live RSAM card -->
+      <div class="card seismo-card" style="grid-column:span 2">
+        <div class="card-hdr">
+          <span class="card-title">Seismograph — RSAM (Real-time Seismic Amplitude)</span>
+          <span class="card-badge live">● LIVE</span>
+        </div>
+        <div class="rsam-row">
+          <div class="rsam-stat">
+            <div class="rsam-val" id="rsam-val">—</div>
+            <div class="rsam-label">Current RSAM (counts/s)</div>
+          </div>
+          <div class="rsam-stat">
+            <div class="rsam-val" id="rsam-station">—</div>
+            <div class="rsam-label">Station / Channel</div>
+          </div>
+          <div class="rsam-stat">
+            <div class="rsam-val" id="rsam-status" style="color:var(--green)">Online</div>
+            <div class="rsam-label">Engine Status</div>
+          </div>
+        </div>
+        <canvas id="seismo-canvas"></canvas>
+      </div>
+
+      <!-- EQ alert metrics -->
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title">Alert Threshold Status</span>
+          <span class="card-badge live">● Real-time</span>
+        </div>
+        <div class="metric-big" id="eq-alert-count" style="color:var(--green)">0</div>
+        <div class="metric-label" id="eq-alert-label">EQ alerts in the last 24 hours</div>
+        <div class="metric-trend ok" id="eq-trend">Station nominal</div>
+      </div>
+
+      <!-- Last event -->
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title">Last Detected Event</span>
+        </div>
+        <div id="last-eq-detail">
+          <div class="metric-big" style="color:var(--text3)">—</div>
+          <div class="metric-label">No recent events</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EQ log -->
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">Recent Seismic Events (Our Sensor)</span>
+        <span class="card-badge usgs">vs USGS</span>
+      </div>
+      <table class="eq-table">
+        <thead><tr>
+          <th>Time</th><th>Severity</th><th>Est. Magnitude</th>
+          <th>STA/LTA Ratio</th><th>S-Wave Arrival</th><th>Status</th>
+        </tr></thead>
+        <tbody id="eq-table-body">
+          <tr><td colspan="6"><div class="empty"><div class="empty-icon">🌍</div>No events detected yet</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Air Quality Section -->
+  <div class="section" id="section-air">
+    <div class="grid-2" style="margin-bottom:18px">
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title">Air Quality Index</span>
+          <span class="card-badge live">● Live</span>
+        </div>
+        <div id="aqi-meters"><div class="empty"><div class="empty-icon">🌬️</div>Loading air quality data…</div></div>
+        <div class="aqi-legend">
+          <div class="aqi-legend-item"><div class="aqi-legend-dot" style="background:var(--green)"></div>Good (0–50)</div>
+          <div class="aqi-legend-item"><div class="aqi-legend-dot" style="background:var(--amber)"></div>Moderate (51–100)</div>
+          <div class="aqi-legend-item"><div class="aqi-legend-dot" style="background:var(--red)"></div>Unhealthy (101+)</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">CO₂ Concentration</span></div>
+        <div class="metric-big"><span id="co2-val">—</span><span class="metric-unit"> ppm</span></div>
+        <div class="metric-label">Indoor CO₂ (outdoor baseline: ~420 ppm)</div>
+        <div class="metric-trend" id="co2-trend">—</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">All Sensors</span></div>
+      <div class="env-grid" id="env-tiles">
+        <div class="empty" style="grid-column:1/-1"><div class="empty-icon">📡</div>Waiting for AirGradient data…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BirdNET Section -->
+  <div class="section" id="section-birds">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-0.03em">🐦 BirdNET Detections</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:4px" id="bird-summary">Loading…</div>
+      </div>
+      <div style="display:flex;gap:16px">
+        <div style="text-align:center">
+          <div style="font-size:28px;font-weight:800" id="birds-unique">—</div>
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em">Species</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:28px;font-weight:800" id="birds-total">—</div>
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em">Detections</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px" id="bird-list">
+      <div class="empty"><div class="empty-icon">🔇</div>No detections yet today</div>
+    </div>
+  </div>
+
+  <!-- Weather Section -->
+  <div class="section" id="section-weather">
+    <div class="grid-4" style="margin-bottom:18px" id="weather-tiles">
+      <div class="empty" style="grid-column:1/-1"><div class="empty-icon">🌤️</div>Waiting for environmental station data…</div>
+    </div>
+  </div>
+
+  <!-- About Section -->
+  <div class="section" id="section-about">
+    <div class="grid-2">
+      <div class="card about-prose">
+        <div class="card-hdr"><span class="card-title">About This Station</span></div>
+        <h3>What is this?</h3>
+        <p>The Mosswood Science Station is a private citizen science installation at a residential property in Berkeley, California. All data shown here is collected by our own sensors and is made freely available for educational and research purposes.</p>
+        <h3>Seismograph</h3>
+        <p>We operate a <strong>Raspberry Shake RS4D</strong> — a professional-grade seismograph. The instrument streams continuous data at 100 Hz. Our EQ Prediction Engine applies STA/LTA (Short-Term Average / Long-Term Average) analysis to detect and classify seismic events in real time.</p>
+        <h3>BirdNET</h3>
+        <p>Acoustic monitoring uses <strong>BirdNET-Analyzer</strong> (Cornell Lab of Ornithology) running locally on a Raspberry Pi 5. Multiple microphones cover the property perimeter and garden. Species detections are published in near real-time. Location metadata is intentionally withheld from this public feed.</p>
+        <h3>Air Quality</h3>
+        <p><strong>AirGradient ONE</strong> monitors measure CO₂ (SCD40), PM2.5 (PMS5003), temperature, humidity, TVOC, and NOx. Data is published directly over WiFi to our local MQTT broker.</p>
+        <h3>Data Policy</h3>
+        <p>All data shown here is from sensors on private residential property. Personal data (occupancy, internal cameras, personal schedules) is never published. This public feed contains only environmental and scientific measurements.</p>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Sensor Stack</span></div>
+        <table class="sensor-table">
+          <thead><tr><th>Sensor</th><th>Measures</th><th>Protocol</th></tr></thead>
+          <tbody>
+            <tr><td>Raspberry Shake RS4D</td><td>Seismic velocity (3-axis)</td><td>UDP / miniSEED</td></tr>
+            <tr><td>AirGradient ONE</td><td>CO₂, PM2.5, temp, humidity, TVOC, NOx</td><td>WiFi → MQTT</td></tr>
+            <tr><td>BirdNET (Raspberry Pi 5)</td><td>Bird species acoustic ID</td><td>MQTT events</td></tr>
+            <tr><td>BatNET (Raspberry Pi 5)</td><td>Bat species ultrasonic ID</td><td>MQTT events</td></tr>
+            <tr><td>ESP32 Weather Pole</td><td>Temp, humidity, wind, MQ gas sensors</td><td>WiFi → MQTT</td></tr>
+            <tr><td>RTL-SDR (ADS-B)</td><td>Aircraft transponders</td><td>USB → MQTT</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- ── Footer ──────────────────────────────────────────────────────────────── -->
+<footer style="border-top:1px solid var(--border); padding:20px 32px; margin-top:40px; display:flex; align-items:center; gap:16px; color:var(--text3); font-size:12px;">
+  <span>Mosswood Science Station · Berkeley, CA</span>
+  <span>·</span>
+  <span>Data refreshes in real-time via WebSocket</span>
+  <span style="margin-left:auto" id="footer-last-update">—</span>
+</footer>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let _seismic = { rsam: null, status: null, alerts: [] };
+let _env = {};
+let _air = {};
+let _birds = [];
+let _ws = null;
+const _rsam_history = new Array(120).fill(null); // 2 min of readings
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+const SECTIONS = ['seismic','air','birds','weather','about'];
+function showSection(name) {
+  SECTIONS.forEach(s => {
+    document.getElementById(`section-${s}`)?.classList.toggle('active', s === name);
+    document.querySelectorAll('.nav-link')[SECTIONS.indexOf(s)]?.classList.toggle('active', s === name);
+  });
+  if (name === 'birds') renderBirds();
+  if (name === 'air') renderAir();
+  if (name === 'weather') renderWeather();
+}
+
+// ── Clock ─────────────────────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}, 1000);
+
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  _ws = new WebSocket(`${proto}://${location.host}/ws/public`);
+  _ws.onopen = () => {
+    document.getElementById('live-dot').style.background = 'var(--green)';
+    document.getElementById('live-label').textContent = 'Live';
+  };
+  _ws.onclose = () => {
+    document.getElementById('live-dot').style.background = 'var(--red)';
+    document.getElementById('live-label').textContent = 'Offline';
+    setTimeout(connectWS, 4000);
+  };
+  _ws.onmessage = (evt) => {
+    const msg = JSON.parse(evt.data);
+    if (msg.event === 'snapshot') {
+      if (msg.data.eq_alerts) { _seismic.alerts = msg.data.eq_alerts; renderSeismic(); }
+      if (msg.data.rsam) { _seismic.rsam = msg.data.rsam; }
+    } else if (msg.topic) {
+      handleMQTT(msg.topic, msg.payload);
+    }
+    document.getElementById('footer-last-update').textContent =
+      'Last update: ' + new Date().toLocaleTimeString();
+  };
+}
+
+function handleMQTT(topic, payload) {
+  if (topic === 'home/alerts/earthquake') {
+    _seismic.alerts.unshift(payload);
+    renderSeismic();
+    showEQBanner(payload);
+  }
+  if (topic.startsWith('home/sensors/seismic') || topic.startsWith('home/status/earthquake-engine')) {
+    if (payload.rsam_value !== undefined) {
+      _seismic.rsam = payload;
+      _rsam_history.push(payload.rsam_value);
+      _rsam_history.shift();
+      updateRSAMDisplay(payload);
+      drawSeismograph();
+    }
+    if (payload.status) {
+      _seismic.status = payload.status;
+      document.getElementById('rsam-status').textContent = payload.status;
+      document.getElementById('rsam-status').style.color =
+        payload.status === 'online' ? 'var(--green)' : 'var(--amber)';
+    }
+  }
+  if (topic === 'home/events/bird-audio') {
+    _birds.unshift(payload);
+    renderBirdsCount();
+  }
+  if (topic.startsWith('home/sensors/environmental')) {
+    const sid = topic.split('/')[3] || 'env';
+    _env[sid] = payload;
+    renderWeather();
+  }
+  if (topic.startsWith('home/sensors/air')) {
+    const sid = topic.split('/')[3] || 'air';
+    _air[sid] = payload;
+    renderAir();
+  }
+}
+
+// ── Load initial data ─────────────────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [seis, env, birds] = await Promise.all([
+      fetch('/api/public/seismic').then(r=>r.json()),
+      fetch('/api/public/environment').then(r=>r.json()),
+      fetch('/api/public/birds').then(r=>r.json()),
+    ]);
+    if (seis.recent_alerts) _seismic.alerts = seis.recent_alerts;
+    if (seis.rsam) _seismic.rsam = seis.rsam;
+    if (env.air_quality) _air = env.air_quality;
+    if (env.readings) _env = env.readings;
+    if (birds.sightings) _birds = birds.sightings;
+    renderSeismic();
+    renderBirdsCount();
+    renderAir();
+    renderWeather();
+    updateStats();
+  } catch(e) { console.warn('load failed', e); }
+}
+
+// ── Seismic ───────────────────────────────────────────────────────────────────
+function updateRSAMDisplay(data) {
+  document.getElementById('rsam-val').textContent = data.rsam_value?.toFixed(2) ?? '—';
+  document.getElementById('rsam-station').textContent = data.station ?? '—';
+  document.getElementById('ov-rsam')?.textContent && null;
+}
+
+function renderSeismic() {
+  const alerts = _seismic.alerts;
+  document.getElementById('eq-alert-count').textContent = alerts.length;
+  document.getElementById('eq-alert-count').style.color = alerts.length > 0 ? 'var(--red)' : 'var(--green)';
+  document.getElementById('eq-trend').textContent = alerts.length > 0 ? `${alerts.length} alert(s) detected` : 'Station nominal';
+  document.getElementById('eq-trend').className = `metric-trend ${alerts.length > 0 ? 'up' : 'ok'}`;
+
+  // Last event
+  if (alerts.length > 0) {
+    const last = alerts[0];
+    document.getElementById('last-eq-detail').innerHTML = `
+      <div class="metric-big" style="color:var(--${last.severity==='critical'?'red':last.severity==='warning'?'amber':'text3'})">${last.estimated_magnitude?.toFixed(1) ?? '?'}<span class="metric-unit">M</span></div>
+      <div class="metric-label">${last.severity?.toUpperCase()} · ${timeAgo(last.timestamp * 1000)}</div>`;
+  }
+
+  // Table
+  const tbody = document.getElementById('eq-table-body');
+  if (!alerts.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">🌍</div>No events detected yet</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = alerts.slice(0,10).map(a => {
+    const mag = a.estimated_magnitude;
+    const magCls = !mag ? 'low' : mag < 3 ? 'low' : mag < 5 ? 'mid' : 'high';
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:12px">${new Date(a.timestamp*1000).toLocaleString()}</td>
+      <td><span class="sev-dot ${a.severity}"></span>${a.severity}</td>
+      <td><span class="mag-chip ${magCls}">${mag?.toFixed(1) ?? '—'}</span></td>
+      <td style="font-family:var(--mono)">${a.sta_lta_ratio?.toFixed(2) ?? '—'}</td>
+      <td style="font-family:var(--mono)">${a.seconds_until_s_wave ? a.seconds_until_s_wave.toFixed(1)+'s' : '—'}</td>
+      <td style="color:var(--text2)">${a.status ?? '—'}</td>
+    </tr>`;
+  }).join('');
+
+  updateStats();
+  drawSeismograph();
+}
+
+// ── Seismograph canvas ─────────────────────────────────────────────────────────
+function drawSeismograph() {
+  const canvas = document.getElementById('seismo-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * devicePixelRatio;
+  canvas.height = canvas.offsetHeight * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg1').trim() || '#0a0f1c';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = (h / 4) * i;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  const valid = _rsam_history.filter(v => v !== null);
+  if (!valid.length) return;
+  const maxV = Math.max(...valid, 1);
+  const minV = Math.min(...valid, 0);
+  const range = maxV - minV || 1;
+
+  ctx.strokeStyle = '#3a8fff';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = '#3a8fff';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+
+  _rsam_history.forEach((v, i) => {
+    if (v === null) return;
+    const x = (i / (_rsam_history.length - 1)) * w;
+    const y = h - ((v - minV) / range) * h * 0.85 - h * 0.075;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+// ── EQ Alert Banner ───────────────────────────────────────────────────────────
+function showEQBanner(alert) {
+  const banner = document.getElementById('eq-alert-banner');
+  document.getElementById('eq-banner-title').textContent = `${alert.severity?.toUpperCase()} Seismic Alert`;
+  document.getElementById('eq-banner-detail').textContent =
+    `Est. M${alert.estimated_magnitude?.toFixed(1) ?? '?'} · STA/LTA: ${alert.sta_lta_ratio?.toFixed(2)} · ${alert.station}`;
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 30000);
+}
+
+// ── Air Quality ───────────────────────────────────────────────────────────────
+function renderAir() {
+  const sensors = Object.values(_air);
+  if (!sensors.length) return;
+  const s = sensors[0]; // primary sensor
+
+  const co2 = s.co2_ppm || s.co2;
+  if (co2) {
+    document.getElementById('co2-val').textContent = Math.round(co2);
+    const trend = co2 < 800 ? '✓ Good ventilation' : co2 < 1200 ? '⚠ Getting stuffy' : '⚠ High — ventilate';
+    document.getElementById('co2-trend').textContent = trend;
+    document.getElementById('co2-trend').style.color = co2 < 800 ? 'var(--green)' : co2 < 1200 ? 'var(--amber)' : 'var(--red)';
+  }
+
+  const meters = document.getElementById('aqi-meters');
+  const pm25 = s.pm25 || s.pm2_5;
+  const pm25aqi = pm25 ? Math.min(100, (pm25/35)*100) : null;
+  const co2aqi = co2 ? Math.min(100, ((co2-400)/1600)*100) : null;
+
+  meters.innerHTML = [
+    pm25 && meterHTML('PM2.5 (Particulate Matter)', `${pm25.toFixed(1)} µg/m³`, pm25aqi),
+    co2  && meterHTML('CO₂ (Carbon Dioxide)', `${Math.round(co2)} ppm`, co2aqi),
+    s.tvoc && meterHTML('TVOC (Volatile Organic Compounds)', `${s.tvoc} µg/m³`, Math.min(100,s.tvoc/500*100)),
+  ].filter(Boolean).join('');
+
+  const tiles = document.getElementById('env-tiles');
+  tiles.innerHTML = [
+    s.temp_c && tileHTML('🌡️', `${((s.temp_c*9/5)+32).toFixed(1)}`, '°F', 'Temperature'),
+    s.humidity && tileHTML('💧', `${Math.round(s.humidity)}`, '%', 'Humidity'),
+    s.pm25 && tileHTML('🌫️', pm25?.toFixed(1), 'µg/m³', 'PM2.5'),
+    co2 && tileHTML('💨', Math.round(co2), 'ppm', 'CO₂'),
+    s.nox && tileHTML('⚗️', s.nox, 'µg/m³', 'NOx'),
+    s.tvoc && tileHTML('🧪', s.tvoc, 'µg/m³', 'TVOC'),
+  ].filter(Boolean).join('');
+}
+
+function meterHTML(name, val, pct) {
+  const cls = pct < 33 ? 'good' : pct < 66 ? 'moderate' : 'unhealthy';
+  return `<div class="aqi-meter">
+    <div class="aqi-header"><span class="aqi-name">${name}</span><span class="aqi-val">${val}</span></div>
+    <div class="aqi-track"><div class="aqi-fill ${cls}" style="width:${pct}%"></div></div>
+  </div>`;
+}
+
+function tileHTML(icon, val, unit, label) {
+  return `<div class="env-tile">
+    <div class="env-tile-icon">${icon}</div>
+    <div class="env-tile-val">${val}<span class="env-tile-unit"> ${unit}</span></div>
+    <div class="env-tile-label">${label}</div>
+  </div>`;
+}
+
+// ── Weather ───────────────────────────────────────────────────────────────────
+function renderWeather() {
+  const readings = Object.values(_env);
+  const tiles = document.getElementById('weather-tiles');
+  if (!readings.length) return;
+  const r = readings[0];
+  tiles.innerHTML = [
+    r.temp_f && tileHTML('🌡️', Math.round(r.temp_f), '°F', 'Temperature'),
+    r.humidity && tileHTML('💧', Math.round(r.humidity), '%', 'Humidity'),
+    r.wind_mph && tileHTML('💨', r.wind_mph?.toFixed(1), 'mph', 'Wind Speed'),
+    r.rain_in && tileHTML('🌧️', r.rain_in?.toFixed(2), 'in', 'Rain Today'),
+    r.pressure_hpa && tileHTML('📊', Math.round(r.pressure_hpa), 'hPa', 'Pressure'),
+    r.solar_radiation && tileHTML('☀️', Math.round(r.solar_radiation), 'W/m²', 'Solar'),
+  ].filter(Boolean).join('');
+}
+
+// ── Birds ─────────────────────────────────────────────────────────────────────
+function renderBirds() {
+  const el = document.getElementById('bird-list');
+  if (!_birds.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🔇</div>No detections yet today</div>`;
+    return;
+  }
+  // Deduplicate to unique species with best confidence
+  const species = {};
+  _birds.forEach(b => {
+    if (!species[b.species] || b.confidence > species[b.species].confidence) species[b.species] = b;
+  });
+  el.innerHTML = Object.values(species)
+    .sort((a,b)=>b.confidence-a.confidence)
+    .slice(0,30)
+    .map(b => `<div class="bird-card">
+      <div class="bird-icon">🐦</div>
+      <div class="bird-info">
+        <div class="bird-common">${esc(b.common_name || b.species)}</div>
+        <div class="bird-sci">${esc(b.species)}</div>
+      </div>
+      <div class="bird-conf-bar">
+        <div class="bird-conf-val">${((b.confidence||0)*100).toFixed(0)}%</div>
+        <div class="bird-time-label">${timeAgo(b.timestamp)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderBirdsCount() {
+  const unique = new Set(_birds.map(b=>b.species)).size;
+  document.getElementById('birds-unique').textContent = unique;
+  document.getElementById('birds-total').textContent = _birds.length;
+  document.getElementById('bird-summary').textContent = `${_birds.length} detections, ${unique} species detected today`;
+  document.getElementById('stat-birds-today').textContent = _birds.length;
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('stat-eq-today').textContent = _seismic.alerts.length;
+  renderBirdsCount();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function timeAgo(ts) {
+  if (!ts) return '';
+  const ms = typeof ts === 'number' && ts < 1e12 ? ts*1000 : ts;
+  const diff = (Date.now() - new Date(ms)) / 1000;
+  if (diff < 60) return `${Math.floor(diff)}s ago`;
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return new Date(ms).toLocaleDateString();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+connectWS();
+loadAll();
+setInterval(drawSeismograph, 5000);
+setInterval(loadAll, 60000);
+</script>
+</body>
+</html>

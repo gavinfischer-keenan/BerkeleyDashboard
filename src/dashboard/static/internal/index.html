@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mosswood — Internal Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --bg: #080c14;
+    --bg1: #0d1220;
+    --bg2: #111828;
+    --bg3: #161f32;
+    --border: #1a2338;
+    --border2: #243050;
+    --text1: #e4e9f7;
+    --text2: #8b96b8;
+    --text3: #4a5578;
+    --accent: hsl(218, 85%, 62%);
+    --accent-dim: hsla(218, 85%, 62%, 0.12);
+    --red: hsl(0, 80%, 60%);
+    --red-dim: hsla(0, 80%, 60%, 0.12);
+    --amber: hsl(38, 90%, 58%);
+    --amber-dim: hsla(38, 90%, 58%, 0.12);
+    --green: hsl(152, 65%, 50%);
+    --green-dim: hsla(152, 65%, 50%, 0.1);
+    --purple: hsl(265, 70%, 65%);
+    --cyan: hsl(195, 80%, 60%);
+    --font: 'Inter', system-ui, sans-serif;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text1); min-height: 100vh; }
+
+  /* ── Top Bar ────────────────────────────────────────────────── */
+  .topbar {
+    position: sticky; top: 0; z-index: 200;
+    background: rgba(8,12,20,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .topbar-logo { font-size: 17px; font-weight: 800; letter-spacing: -0.04em; flex-shrink: 0; }
+  .topbar-logo .dot { color: var(--accent); }
+  .topbar-nav { display: flex; gap: 2px; }
+  .nav-tab {
+    padding: 6px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--text2);
+    transition: all 0.15s; border: none; background: transparent;
+  }
+  .nav-tab:hover { background: var(--bg2); color: var(--text1); }
+  .nav-tab.active { background: var(--accent-dim); color: var(--accent); }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--green);
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+    animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 var(--green);} 50%{opacity:0.8;box-shadow:0 0 0 5px transparent;} }
+  .clock { font-size: 13px; font-weight: 600; color: var(--text2); font-variant-numeric: tabular-nums; }
+  .alarm-bell {
+    position: relative; cursor: pointer; padding: 6px;
+    border-radius: 8px; transition: background 0.15s;
+  }
+  .alarm-bell:hover { background: var(--bg2); }
+  .alarm-bell svg { width:20px; height:20px; stroke: var(--text2); fill: none; stroke-width: 2; }
+  .alarm-count {
+    position: absolute; top: 2px; right: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--red); color: #fff; font-size: 9px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    display: none;
+  }
+  .alarm-count.show { display: flex; }
+
+  /* ── Layout ─────────────────────────────────────────────────── */
+  .layout { display: flex; height: calc(100vh - 56px); }
+
+  /* ── Sidebar ─────────────────────────────────────────────────── */
+  .sidebar {
+    width: 220px; flex-shrink: 0;
+    background: var(--bg1);
+    border-right: 1px solid var(--border);
+    padding: 16px 10px;
+    display: flex; flex-direction: column; gap: 4px;
+    overflow-y: auto;
+  }
+  .sidebar-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text3);
+    padding: 10px 10px 4px;
+  }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 9px; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--text2);
+    transition: all 0.15s;
+  }
+  .sidebar-item:hover { background: var(--bg2); color: var(--text1); }
+  .sidebar-item.active { background: var(--accent-dim); color: var(--accent); }
+  .sidebar-icon { font-size: 15px; width: 22px; text-align: center; }
+  .sidebar-badge {
+    margin-left: auto; min-width: 18px; height: 18px;
+    background: var(--red); color: #fff;
+    font-size: 10px; font-weight: 700;
+    border-radius: 10px; padding: 0 5px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .agent-dot { width: 8px; height: 8px; border-radius: 50%; margin-left: auto; }
+  .agent-dot.online { background: var(--green); }
+  .agent-dot.offline { background: var(--text3); }
+  .agent-dot.degraded { background: var(--amber); }
+
+  /* ── Main content ────────────────────────────────────────────── */
+  .main { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+  /* ── Section visibility ──────────────────────────────────────── */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ── Grid layouts ────────────────────────────────────────────── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+
+  /* ── Card ────────────────────────────────────────────────────── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--border2); }
+  .card.alert { border-color: hsla(0,80%,60%,0.4); background: var(--red-dim); }
+  .card.warn { border-color: hsla(38,90%,58%,0.4); background: var(--amber-dim); }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text2); }
+  .card-icon { font-size: 18px; }
+  .big-value { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .value-unit { font-size: 14px; font-weight: 500; color: var(--text2); margin-left: 4px; }
+  .card-sub { font-size: 12px; color: var(--text3); margin-top: 6px; }
+  .card-sub.ok { color: var(--green); }
+  .card-sub.warn { color: var(--amber); }
+  .card-sub.alert { color: var(--red); }
+
+  /* ── Section header ──────────────────────────────────────────── */
+  .section-header { margin-bottom: 16px; }
+  .section-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .section-sub { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  /* ── Alarm cards ─────────────────────────────────────────────── */
+  .alarm-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px;
+    display: flex; align-items: flex-start; gap: 14px;
+    transition: all 0.2s;
+  }
+  .alarm-card.critical { border-color: hsla(0,80%,60%,0.5); background: rgba(200,50,50,0.07); }
+  .alarm-card.high     { border-color: hsla(38,90%,58%,0.4); background: rgba(200,140,0,0.06); }
+  .alarm-card.normal   { border-color: var(--border2); }
+  .alarm-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+  .alarm-body { flex: 1; }
+  .alarm-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+  .alarm-detail { font-size: 12px; color: var(--text2); }
+  .alarm-time { font-size: 11px; color: var(--text3); margin-top: 5px; }
+  .priority-tag {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px;
+    text-transform: uppercase; letter-spacing: 0.05em; margin-left: auto; flex-shrink: 0;
+  }
+  .priority-tag.critical { background: var(--red-dim); color: var(--red); border: 1px solid hsla(0,80%,60%,0.3); }
+  .priority-tag.high { background: var(--amber-dim); color: var(--amber); border: 1px solid hsla(38,90%,58%,0.3); }
+  .priority-tag.normal { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+  .empty-state { padding: 40px; text-align: center; color: var(--text3); font-size: 14px; }
+  .empty-icon { font-size: 36px; opacity: 0.3; margin-bottom: 10px; }
+
+  /* ── Message inbox rows ──────────────────────────────────────── */
+  .msg-row {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background 0.15s; display: flex; gap: 12px; align-items: flex-start;
+  }
+  .msg-row:hover { background: var(--bg3); }
+  .msg-row.unread { border-left: 3px solid var(--accent); }
+  .msg-row-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .msg-row-body { flex: 1; min-width: 0; }
+  .msg-row-top { display: flex; gap: 8px; align-items: center; margin-bottom: 3px; }
+  .msg-row-source { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text3); }
+  .msg-row-subject { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg-row.unread .msg-row-subject { color: var(--text1); }
+  .msg-row:not(.unread) .msg-row-subject { color: var(--text2); font-weight: 400; }
+  .msg-row-preview { font-size: 12px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg-row-time { font-size: 11px; color: var(--text3); margin-left: auto; flex-shrink: 0; }
+
+  /* ── Room cards ──────────────────────────────────────────────── */
+  .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+  .room-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+  }
+  .room-name { font-size: 12px; font-weight: 700; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 10px; }
+  .room-reading { display: flex; gap: 16px; }
+  .room-metric { }
+  .room-metric-val { font-size: 22px; font-weight: 700; }
+  .room-metric-label { font-size: 11px; color: var(--text3); }
+  .occupied-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; padding: 3px 8px; border-radius: 8px; margin-top: 8px;
+  }
+  .occupied-badge.yes { background: var(--green-dim); color: var(--green); }
+  .occupied-badge.no  { background: var(--bg3); color: var(--text3); }
+
+  /* ── Soil zone bars ──────────────────────────────────────────── */
+  .soil-zone { margin-bottom: 12px; }
+  .soil-zone-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+  .soil-zone-name { font-weight: 600; }
+  .soil-zone-pct { color: var(--text2); }
+  .soil-bar-bg { background: var(--bg3); border-radius: 4px; height: 6px; }
+  .soil-bar-fill { border-radius: 4px; height: 6px; transition: width 0.6s; }
+  .soil-bar-fill.dry { background: var(--amber); }
+  .soil-bar-fill.ok { background: var(--green); }
+  .soil-bar-fill.wet { background: var(--cyan); }
+
+  /* ── Power circuit table ─────────────────────────────────────── */
+  .circuit-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .circuit-table th { text-align: left; padding: 8px 12px; color: var(--text3);
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border); }
+  .circuit-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .circuit-table tr:last-child td { border-bottom: none; }
+  .circuit-table tr:hover td { background: var(--bg3); }
+  .watts-bar { display: flex; align-items: center; gap: 10px; }
+  .watts-mini-bar { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; }
+  .watts-mini-fill { height: 4px; border-radius: 2px; background: var(--accent); }
+
+  /* ── Agent health list ───────────────────────────────────────── */
+  .agent-row {
+    display: flex; align-items: center; padding: 10px 16px;
+    border-bottom: 1px solid var(--border); gap: 12px;
+  }
+  .agent-name { font-size: 13px; font-weight: 600; }
+  .agent-detail { font-size: 12px; color: var(--text3); }
+  .status-chip {
+    margin-left: auto; font-size: 11px; font-weight: 700;
+    padding: 3px 9px; border-radius: 8px;
+  }
+  .status-chip.online { background: var(--green-dim); color: var(--green); }
+  .status-chip.offline { background: var(--bg3); color: var(--text3); }
+  .status-chip.degraded { background: var(--amber-dim); color: var(--amber); }
+
+  /* ── Bird list ───────────────────────────────────────────────── */
+  .bird-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+  }
+  .bird-icon { font-size: 20px; }
+  .bird-species { font-size: 13px; font-weight: 600; }
+  .bird-common { font-size: 12px; color: var(--text2); }
+  .bird-conf {
+    margin-left: auto; font-size: 12px; font-weight: 700;
+    padding: 2px 8px; border-radius: 6px;
+    background: var(--green-dim); color: var(--green);
+  }
+  .bird-time { font-size: 11px; color: var(--text3); }
+</style>
+</head>
+<body>
+
+<!-- ── Top Bar ─────────────────────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-logo">Mosswood<span class="dot">.</span>Internal</div>
+  <nav class="topbar-nav">
+    <button class="nav-tab active" onclick="showSection('overview')">Overview</button>
+    <button class="nav-tab" onclick="showSection('alarms')">Alarms</button>
+    <button class="nav-tab" onclick="showSection('messages')">Messages</button>
+    <button class="nav-tab" onclick="showSection('house')">House</button>
+    <button class="nav-tab" onclick="showSection('garden')">Garden</button>
+    <button class="nav-tab" onclick="showSection('power')">Power</button>
+    <button class="nav-tab" onclick="showSection('birds')">BirdNET</button>
+    <button class="nav-tab" onclick="showSection('system')">System</button>
+  </nav>
+  <div class="topbar-right">
+    <div class="live-badge">
+      <div class="live-dot" id="live-dot"></div>
+      <span id="live-label">Connecting</span>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="alarm-bell" onclick="showSection('alarms')">
+      <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <div class="alarm-count" id="alarm-count">0</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Layout ──────────────────────────────────────────────────────────────── -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-section-label">Navigation</div>
+    <div class="sidebar-item active" onclick="showSection('overview')">
+      <span class="sidebar-icon">🏠</span> Overview
+    </div>
+    <div class="sidebar-item" onclick="showSection('alarms')">
+      <span class="sidebar-icon">🚨</span> Alarms
+      <span class="sidebar-badge" id="sidebar-alarm-count" style="display:none">0</span>
+    </div>
+    <div class="sidebar-item" onclick="showSection('messages')">
+      <span class="sidebar-icon">📬</span> Messages
+      <span class="sidebar-badge" id="sidebar-msg-count" style="display:none">0</span>
+    </div>
+
+    <div class="sidebar-section-label">House</div>
+    <div class="sidebar-item" onclick="showSection('house')">
+      <span class="sidebar-icon">🌡️</span> Climate & Rooms
+    </div>
+    <div class="sidebar-item" onclick="showSection('garden')">
+      <span class="sidebar-icon">🌱</span> Garden
+    </div>
+    <div class="sidebar-item" onclick="showSection('power')">
+      <span class="sidebar-icon">⚡</span> Power
+    </div>
+    <div class="sidebar-item" onclick="showSection('birds')">
+      <span class="sidebar-icon">🐦</span> BirdNET
+    </div>
+
+    <div class="sidebar-section-label">Agents</div>
+    <div id="agent-sidebar-list"></div>
+
+    <div class="sidebar-section-label">Platform</div>
+    <div class="sidebar-item" onclick="showSection('system')">
+      <span class="sidebar-icon">⚙️</span> System Health
+    </div>
+  </nav>
+
+  <!-- ── Main ──────────────────────────────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- Overview -->
+    <div class="section active" id="section-overview">
+      <div class="section-header">
+        <div class="section-title">Overview</div>
+        <div class="section-sub" id="overview-time">Loading…</div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:20px" id="overview-cards">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Active Alarms</span><span class="card-icon">🚨</span></div>
+          <div class="big-value" id="ov-alarms">—</div>
+          <div class="card-sub" id="ov-alarms-sub">Loading…</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Messages</span><span class="card-icon">📬</span></div>
+          <div class="big-value" id="ov-messages">—</div>
+          <div class="card-sub">Unread in inbox</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Seismic RSAM</span><span class="card-icon">🌍</span></div>
+          <div class="big-value" id="ov-rsam">—</div>
+          <div class="card-sub" id="ov-rsam-sub">No recent EQ alerts</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Birds Today</span><span class="card-icon">🐦</span></div>
+          <div class="big-value" id="ov-birds">—</div>
+          <div class="card-sub" id="ov-birds-sub">Species detected</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Recent alarms -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Recent Alarms</span></div>
+          <div id="ov-alarm-list"><div class="empty-state"><div class="empty-icon">✅</div>No active alarms</div></div>
+        </div>
+        <!-- Recent messages -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Message Inbox</span></div>
+          <div id="ov-message-list"><div class="empty-state"><div class="empty-icon">📭</div>No unread messages</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alarms -->
+    <div class="section" id="section-alarms">
+      <div class="section-header">
+        <div class="section-title">🚨 Active Alarms</div>
+        <div class="section-sub">Managed by BerkeleyAlarms — <a href="http://localhost:8084" target="_blank" style="color:var(--accent)">Open full console ↗</a></div>
+      </div>
+      <div id="alarms-list"><div class="empty-state"><div class="empty-icon">✅</div>All clear — no active alarms</div></div>
+    </div>
+
+    <!-- Messages -->
+    <div class="section" id="section-messages">
+      <div class="section-header">
+        <div class="section-title">📬 AI Agent Messages</div>
+        <div class="section-sub">Observations and requests from AI agents — <a href="http://localhost:8085" target="_blank" style="color:var(--accent)">Open full inbox ↗</a></div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="messages-list"><div class="empty-state"><div class="empty-icon">📭</div>Inbox is empty</div></div>
+      </div>
+    </div>
+
+    <!-- House -->
+    <div class="section" id="section-house">
+      <div class="section-header">
+        <div class="section-title">🌡️ Climate & Occupancy</div>
+      </div>
+      <div class="room-grid" id="room-grid">
+        <div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📡</div>Waiting for sensor data…</div>
+      </div>
+    </div>
+
+    <!-- Garden -->
+    <div class="section" id="section-garden">
+      <div class="section-header">
+        <div class="section-title">🌱 Garden & Irrigation</div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Soil Moisture</span><span class="card-icon">💧</span></div>
+          <div id="soil-bars"><div class="empty-state">No soil data yet</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Zone Status</span><span class="card-icon">🌿</span></div>
+          <div id="zone-status"><div class="empty-state">Rachio data pending</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Power -->
+    <div class="section" id="section-power">
+      <div class="section-header">
+        <div class="section-title">⚡ Power — Circuit Monitor</div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="circuit-table">
+          <thead><tr>
+            <th>Circuit</th><th>Location</th><th>Watts</th><th>Load</th><th>Status</th>
+          </tr></thead>
+          <tbody id="power-table-body">
+            <tr><td colspan="5"><div class="empty-state">No circuit data yet</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BirdNET -->
+    <div class="section" id="section-birds">
+      <div class="section-header">
+        <div class="section-title">🐦 BirdNET — Detections</div>
+        <div class="section-sub" id="bird-count-label">Loading…</div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="bird-list"><div class="empty-state"><div class="empty-icon">🔇</div>No detections yet today</div></div>
+      </div>
+    </div>
+
+    <!-- System -->
+    <div class="section" id="section-system">
+      <div class="section-header">
+        <div class="section-title">⚙️ System Health</div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;margin-bottom:20px">
+        <div id="agent-health-list"><div class="empty-state">Waiting for agent heartbeats…</div></div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let _alarms = [];
+let _messages = [];
+let _state = {};
+let _birds = [];
+let _ws = null;
+const SECTION_TABS = ['overview','alarms','messages','house','garden','power','birds','system'];
+
+// ── Clock ──────────────────────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}, 1000);
+
+// ── Navigation ─────────────────────────────────────────────────────────────────
+function showSection(name) {
+  SECTION_TABS.forEach(s => {
+    document.getElementById(`section-${s}`)?.classList.toggle('active', s === name);
+    document.querySelectorAll(`.nav-tab`)[SECTION_TABS.indexOf(s)]?.classList.toggle('active', s === name);
+    document.querySelectorAll(`.sidebar-item`).forEach(el => {
+      if (el.getAttribute('onclick') === `showSection('${name}')`) el.classList.add('active');
+      else el.classList.remove('active');
+    });
+  });
+  if (name === 'alarms') loadAlarms();
+  if (name === 'messages') loadMessages();
+  if (name === 'birds') renderBirds();
+  if (name === 'power') renderPower();
+  if (name === 'house') renderHouse();
+  if (name === 'system') renderSystem();
+}
+
+// ── WebSocket ──────────────────────────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  _ws = new WebSocket(`${proto}://${location.host}/ws/internal`);
+  _ws.onopen = () => {
+    document.getElementById('live-dot').style.background = 'var(--green)';
+    document.getElementById('live-label').textContent = 'Live';
+  };
+  _ws.onclose = () => {
+    document.getElementById('live-dot').style.background = 'var(--red)';
+    document.getElementById('live-label').textContent = 'Reconnecting…';
+    setTimeout(connectWS, 3000);
+  };
+  _ws.onmessage = (evt) => {
+    const msg = JSON.parse(evt.data);
+    if (msg.event === 'snapshot') {
+      if (msg.data.agent_status) renderAgentSidebar(msg.data.agent_status);
+    } else if (msg.topic) {
+      handleMQTTEvent(msg.topic, msg.payload);
+    }
+  };
+}
+
+function handleMQTTEvent(topic, payload) {
+  if (topic === 'home/events/bird-audio') {
+    _birds.unshift(payload);
+    renderBirds();
+    const n = _birds.length;
+    document.getElementById('ov-birds').textContent = n;
+  }
+  if (topic.startsWith('home/status/')) {
+    const agent = topic.split('/')[2];
+    if (!_state.agent_status) _state.agent_status = {};
+    _state.agent_status[agent] = payload;
+    renderAgentSidebar(_state.agent_status);
+  }
+  if (topic.startsWith('home/sensors/seismic') || topic === 'home/alerts/earthquake') {
+    loadState();
+  }
+}
+
+// ── Data loading ───────────────────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadAlarms(), loadMessages(), loadState(), loadBirds()]);
+  renderOverview();
+}
+
+async function loadAlarms() {
+  try {
+    const r = await fetch('/api/internal/alarms');
+    const data = await r.json();
+    _alarms = data.alarms || [];
+    renderAlarms();
+    updateAlarmBadge();
+  } catch(e) { _alarms = []; }
+}
+
+async function loadMessages() {
+  try {
+    const r = await fetch('/api/internal/messages');
+    const data = await r.json();
+    _messages = data.messages || [];
+    renderMessages();
+    updateMsgBadge();
+  } catch(e) { _messages = []; }
+}
+
+async function loadState() {
+  try {
+    const r = await fetch('/api/internal/state');
+    _state = await r.json();
+    renderOverview();
+    renderPower();
+    renderHouse();
+    renderSystem();
+    if (_state.agent_status) renderAgentSidebar(_state.agent_status);
+  } catch(e) {}
+}
+
+async function loadBirds() {
+  try {
+    const r = await fetch('/api/internal/birds');
+    const data = await r.json();
+    _birds = data.sightings || [];
+    renderBirds();
+  } catch(e) {}
+}
+
+// ── Render: Overview ──────────────────────────────────────────────────────────
+function renderOverview() {
+  document.getElementById('overview-time').textContent = new Date().toLocaleString();
+  document.getElementById('ov-alarms').textContent = _alarms.length;
+  document.getElementById('ov-messages').textContent = _messages.filter(m => !m.read).length;
+
+  const rsam = _state.seismic?.rsam?.rsam_value;
+  document.getElementById('ov-rsam').textContent = rsam ? rsam.toFixed(2) : '—';
+
+  const uniqueSpecies = new Set(_birds.map(b => b.species)).size;
+  document.getElementById('ov-birds').textContent = uniqueSpecies;
+  document.getElementById('ov-birds-sub').textContent = `${_birds.length} total detections`;
+
+  // Mini alarm list
+  const alarmList = document.getElementById('ov-alarm-list');
+  if (_alarms.length === 0) {
+    alarmList.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>All clear</div>`;
+  } else {
+    alarmList.innerHTML = _alarms.slice(0,3).map(a => alarmCardHTML(a)).join('');
+  }
+
+  // Mini message list
+  const msgList = document.getElementById('ov-message-list');
+  const unread = _messages.filter(m => !m.read);
+  if (!unread.length) {
+    msgList.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div>No unread messages</div>`;
+  } else {
+    msgList.innerHTML = unread.slice(0,4).map(m => msgRowHTML(m)).join('');
+  }
+}
+
+// ── Render: Alarms ─────────────────────────────────────────────────────────────
+function renderAlarms() {
+  const el = document.getElementById('alarms-list');
+  if (!_alarms.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>All clear — no active alarms</div>`;
+    return;
+  }
+  el.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;">${_alarms.map(alarmCardHTML).join('')}</div>`;
+}
+
+function alarmCardHTML(a) {
+  const icons = {earthquake:'🌍',smoke:'🔥',carbon_monoxide:'☠️',leak:'💧',co2_high:'🌫️',breaker_trip:'⚡',power_anomaly:'🔌'};
+  const icon = icons[a.alarm_type] || '🚨';
+  return `<div class="alarm-card ${a.priority}">
+    <div class="alarm-icon">${icon}</div>
+    <div class="alarm-body">
+      <div class="alarm-title">${esc(a.message || a.alarm_type)}</div>
+      <div class="alarm-detail">${esc(a.alarm_id || '')}</div>
+      <div class="alarm-time">${timeAgo(a.triggered_at)}</div>
+    </div>
+    <span class="priority-tag ${a.priority}">${a.priority?.replace('_',' ')}</span>
+  </div>`;
+}
+
+// ── Render: Messages ──────────────────────────────────────────────────────────
+function renderMessages() {
+  const el = document.getElementById('messages-list');
+  if (!_messages.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div>Inbox is empty</div>`;
+    return;
+  }
+  el.innerHTML = _messages.slice(0,20).map(msgRowHTML).join('');
+}
+
+function msgRowHTML(m) {
+  const icons = {'ai-garden':'🌱','birdnet':'🐦','batnet':'🦇','ai-power':'⚡','crossmodal':'🔗','seismic':'🌍'};
+  const icon = Object.entries(icons).find(([k])=>m.source?.includes(k))?.[1] || '🤖';
+  return `<div class="msg-row ${m.read?'':'unread'}" onclick="window.open('http://localhost:8085','_blank')">
+    <div class="msg-row-icon">${icon}</div>
+    <div class="msg-row-body">
+      <div class="msg-row-top">
+        <span class="msg-row-source">${esc(m.source)}</span>
+      </div>
+      <div class="msg-row-subject">${esc(m.subject)}</div>
+      <div class="msg-row-preview">${esc(m.body?.substring(0,80))}…</div>
+    </div>
+    <span class="msg-row-time">${timeAgo(m.timestamp)}</span>
+  </div>`;
+}
+
+// ── Render: House ──────────────────────────────────────────────────────────────
+function renderHouse() {
+  const climate = _state.climate || {};
+  const occupancy = _state.occupancy || {};
+  const rooms = [...new Set([...Object.keys(climate), ...Object.keys(occupancy)])];
+  const grid = document.getElementById('room-grid');
+  if (!rooms.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📡</div>Waiting for sensor data…</div>`;
+    return;
+  }
+  grid.innerHTML = rooms.map(room => {
+    const c = climate[room] || {};
+    const occ = occupancy[room] || {};
+    return `<div class="room-card">
+      <div class="room-name">${esc(room.replace(/-/g,' '))}</div>
+      <div class="room-reading">
+        ${c.temp_f !== undefined ? `<div class="room-metric"><div class="room-metric-val">${Math.round(c.temp_f)}°</div><div class="room-metric-label">Fahrenheit</div></div>` : ''}
+        ${c.humidity !== undefined ? `<div class="room-metric"><div class="room-metric-val">${Math.round(c.humidity)}%</div><div class="room-metric-label">Humidity</div></div>` : ''}
+      </div>
+      ${occ.occupied !== undefined ? `<div class="occupied-badge ${occ.occupied?'yes':'no'}">${occ.occupied?'● Occupied':'○ Empty'}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── Render: Garden ─────────────────────────────────────────────────────────────
+function renderGarden() {
+  const soil = _state.soil || {};
+  const bars = document.getElementById('soil-bars');
+  const zones = Object.entries(soil);
+  if (!zones.length) { bars.innerHTML = `<div class="empty-state">No soil data yet</div>`; return; }
+  bars.innerHTML = zones.map(([zone, d]) => {
+    const pct = d.moisture_pct ?? 0;
+    const cls = pct < 25 ? 'dry' : pct > 70 ? 'wet' : 'ok';
+    return `<div class="soil-zone">
+      <div class="soil-zone-header">
+        <span class="soil-zone-name">${esc(d.location || zone)}</span>
+        <span class="soil-zone-pct">${Math.round(pct)}%</span>
+      </div>
+      <div class="soil-bar-bg"><div class="soil-bar-fill ${cls}" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render: Power ──────────────────────────────────────────────────────────────
+function renderPower() {
+  const power = _state.power || {};
+  const tbody = document.getElementById('power-table-body');
+  const circuits = Object.entries(power);
+  if (!circuits.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">No circuit data yet</div></td></tr>`;
+    return;
+  }
+  const maxW = Math.max(...circuits.map(([,d])=>d.watts||0), 1);
+  tbody.innerHTML = circuits.map(([id, d]) => {
+    const pct = Math.min(100, ((d.watts||0) / maxW) * 100);
+    return `<tr>
+      <td><strong>${esc(d.circuit_name || id)}</strong></td>
+      <td style="color:var(--text2)">${esc(d.location || '—')}</td>
+      <td><strong>${Math.round(d.watts || 0)}</strong> W</td>
+      <td><div class="watts-bar"><div class="watts-mini-bar"><div class="watts-mini-fill" style="width:${pct}%"></div></div><span style="font-size:11px;color:var(--text3);min-width:30px">${Math.round(pct)}%</span></div></td>
+      <td><span style="color:var(--green);font-size:12px">● Active</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Render: Birds ──────────────────────────────────────────────────────────────
+function renderBirds() {
+  const el = document.getElementById('bird-list');
+  const label = document.getElementById('bird-count-label');
+  const unique = new Set(_birds.map(b => b.species)).size;
+  label.textContent = `${_birds.length} detections, ${unique} species today`;
+  if (!_birds.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🔇</div>No detections yet today</div>`;
+    return;
+  }
+  el.innerHTML = _birds.slice(0,30).map(b => `<div class="bird-row">
+    <div class="bird-icon">🐦</div>
+    <div>
+      <div class="bird-species">${esc(b.common_name || b.species || '—')}</div>
+      <div class="bird-common" style="font-style:italic">${esc(b.species || '')}</div>
+    </div>
+    <span class="bird-conf">${((b.confidence||0)*100).toFixed(0)}%</span>
+    <span class="bird-time">${timeAgo(b.timestamp)}</span>
+  </div>`).join('');
+}
+
+// ── Render: System ─────────────────────────────────────────────────────────────
+function renderSystem() {
+  const agents = _state.agent_status || {};
+  const el = document.getElementById('agent-health-list');
+  const entries = Object.entries(agents);
+  if (!entries.length) { el.innerHTML = `<div class="empty-state">Waiting for agent heartbeats…</div>`; return; }
+  el.innerHTML = entries.map(([name, data]) => {
+    const status = data.status || 'unknown';
+    return `<div class="agent-row">
+      <div>
+        <div class="agent-name">${esc(name)}</div>
+        <div class="agent-detail">${data.uptime_sec ? `Uptime: ${Math.round(data.uptime_sec)}s` : ''}</div>
+      </div>
+      <span class="status-chip ${status}">${status}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderAgentSidebar(agents) {
+  const el = document.getElementById('agent-sidebar-list');
+  el.innerHTML = Object.entries(agents).map(([name, d]) => {
+    const status = d.status || 'unknown';
+    return `<div class="sidebar-item">
+      <span class="sidebar-icon">🤖</span>
+      <span style="font-size:12px">${esc(name.replace('-',' '))}</span>
+      <div class="agent-dot ${status}"></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Badges ─────────────────────────────────────────────────────────────────────
+function updateAlarmBadge() {
+  const n = _alarms.length;
+  const badge = document.getElementById('alarm-count');
+  const sbadge = document.getElementById('sidebar-alarm-count');
+  badge.textContent = n;
+  badge.className = `alarm-count ${n > 0 ? 'show' : ''}`;
+  sbadge.textContent = n;
+  sbadge.style.display = n > 0 ? 'flex' : 'none';
+}
+
+function updateMsgBadge() {
+  const n = _messages.filter(m => !m.read).length;
+  const sbadge = document.getElementById('sidebar-msg-count');
+  sbadge.textContent = n;
+  sbadge.style.display = n > 0 ? 'flex' : 'none';
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function timeAgo(ts) {
+  if (!ts) return '';
+  const diff = (Date.now() - new Date(ts)) / 1000;
+  if (diff < 60) return `${Math.floor(diff)}s ago`;
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+connectWS();
+loadAll();
+setInterval(loadAll, 30000); // refresh every 30s
+</script>
+</body>
+</html>
