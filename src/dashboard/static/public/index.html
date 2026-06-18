@@ -175,6 +175,7 @@
   .sev-dot.info { background: var(--text3); }
   .sev-dot.warning { background: var(--amber); }
   .sev-dot.critical { background: var(--red); }
+  .sev-dot.advisory { background: var(--accent2); }
 
   /* ── Air quality bars ────────────────────────────────────────────── */
   .aqi-meter { margin-bottom: 16px; }
@@ -251,6 +252,10 @@
     border: 1px solid hsla(5,78%,55%,0.7);
     animation: critpulse 1s ease-in-out infinite;
   }
+  .eq-status-card.advisory { border-color: var(--accent2); }
+  .eq-status-card.advisory .eq-status-icon { animation: warnpulse 3s infinite; }
+  .eq-status-label.advisory { color: var(--accent2); }
+  .eq-status-title.advisory { color: var(--accent2); }
   @keyframes warnpulse { 0%,100%{border-color:hsla(38,90%,50%,0.5)} 50%{border-color:hsla(38,90%,70%,0.9)} }
   @keyframes critpulse { 0%,100%{border-color:hsla(5,78%,55%,0.7)} 50%{border-color:hsla(5,78%,80%,1)} }
   .eq-status-icon { font-size: 52px; flex-shrink: 0; line-height: 1; }
@@ -430,15 +435,15 @@
     <div class="card">
       <div class="card-hdr">
         <span class="card-title">Recent Seismic Events (Our Sensor)</span>
-        <span class="card-badge usgs">vs USGS</span>
+        <span class="card-badge usgs">RS4D + USGS Correlation</span>
       </div>
       <table class="eq-table">
         <thead><tr>
-          <th>Time</th><th>Severity</th><th>Est. Magnitude</th>
-          <th>STA/LTA Ratio</th><th>S-Wave Arrival</th><th>Status</th>
+          <th>Time</th><th>Severity</th><th>Magnitude</th>
+          <th>Distance</th><th>Source</th><th>STA/LTA</th><th>S-Wave</th><th>Status</th>
         </tr></thead>
         <tbody id="eq-table-body">
-          <tr><td colspan="6"><div class="empty"><div class="empty-icon">🌍</div>No events detected yet</div></td></tr>
+          <tr><td colspan="8"><div class="empty"><div class="empty-icon">🌍</div>No events detected yet</div></td></tr>
         </tbody>
       </table>
     </div>
@@ -771,6 +776,7 @@ function renderSeismic() {
   const activeAlerts = alerts.filter(a => a.status === 'triggered' || a.status === 'confirmed');
   const highestSev   = activeAlerts.find(a => a.severity === 'critical')
                     || activeAlerts.find(a => a.severity === 'warning')
+                    || activeAlerts.find(a => a.severity === 'advisory')
                     || null;
 
   statusCount.textContent = alerts.length;
@@ -794,19 +800,33 @@ function renderSeismic() {
     statusLabel.className = 'eq-status-label warning';
     statusLabel.textContent = '⚠ Seismic Warning Active';
     statusTitle.className = 'eq-status-title warning';
-    statusTitle.textContent = `Seismic Warning — Est. M${highestSev.estimated_magnitude?.toFixed(1) ?? '?'}`;
+    const distStr = highestSev.distance_miles ? ` — ${highestSev.distance_miles.toFixed(0)} mi` : '';
+    statusTitle.textContent = `Seismic Warning — Est. M${highestSev.estimated_magnitude?.toFixed(1) ?? '?'}${distStr}`;
     statusDetail.textContent =
       `STA/LTA ratio ${highestSev.sta_lta_ratio?.toFixed(2)} · Station ${highestSev.station} · ` +
       (highestSev.seconds_until_s_wave ? `S-wave in ~${highestSev.seconds_until_s_wave.toFixed(0)}s` : 'S-wave arrival unknown');
     statusCount.className = 'eq-status-count';
     statusCount.style.color = 'var(--amber)';
+  } else if (highestSev.severity === 'advisory') {
+    statusCard.className  = 'eq-status-card advisory';
+    statusIcon.textContent = 'ℹ️';
+    statusLabel.className = 'eq-status-label advisory';
+    statusLabel.textContent = 'Seismic Advisory';
+    statusTitle.className = 'eq-status-title advisory';
+    const distStr = highestSev.distance_miles ? ` — ${highestSev.distance_miles.toFixed(0)} mi (${highestSev.distance_class})` : '';
+    statusTitle.textContent = `Seismic Advisory — Est. M${highestSev.estimated_magnitude?.toFixed(1) ?? '?'}${distStr}`;
+    statusDetail.textContent =
+      `${highestSev.place || ''} · Source: ${highestSev.data_source || 'unknown'}`;
+    statusCount.className = 'eq-status-count';
+    statusCount.style.color = 'var(--accent2)';
   } else {
     statusCard.className  = 'eq-status-card critical';
     statusIcon.textContent = '🚨';
     statusLabel.className = 'eq-status-label critical';
     statusLabel.textContent = '🚨 EARTHQUAKE ALARM — ACT NOW';
     statusTitle.className = 'eq-status-title critical';
-    statusTitle.textContent = `Earthquake Imminent — Est. M${highestSev.estimated_magnitude?.toFixed(1) ?? '?'}`;
+    const distStr = highestSev.distance_miles ? ` — ${highestSev.distance_miles.toFixed(0)} mi away` : '';
+    statusTitle.textContent = `Earthquake Imminent — Est. M${highestSev.estimated_magnitude?.toFixed(1) ?? '?'}${distStr}`;
     statusDetail.textContent =
       `STA/LTA ratio ${highestSev.sta_lta_ratio?.toFixed(2)} · Station ${highestSev.station} · ` +
       (highestSev.seconds_until_s_wave ? `S-wave in ~${highestSev.seconds_until_s_wave.toFixed(0)} seconds — drop, cover, hold on` : 'Impact imminent');
@@ -822,24 +842,31 @@ function renderSeismic() {
   // Last event
   if (alerts.length > 0) {
     const last = alerts[0];
+    const distInfo = last.distance_miles != null ? ` · ${last.distance_miles.toFixed(0)} mi (${last.distance_class})` : '';
     document.getElementById('last-eq-detail').innerHTML = `
-      <div class="metric-big" style="color:var(--${last.severity==='critical'?'red':last.severity==='warning'?'amber':'text3'})">${last.estimated_magnitude?.toFixed(1) ?? '?'}<span class="metric-unit">M</span></div>
-      <div class="metric-label">${last.severity?.toUpperCase()} · ${timeAgo(last.timestamp * 1000)}</div>`;
+      <div class="metric-big" style="color:var(--${last.severity==='critical'?'red':last.severity==='warning'?'amber':last.severity==='advisory'?'accent2':'text3'})">${(last.estimated_magnitude || last.usgs_magnitude)?.toFixed(1) ?? '?'}<span class="metric-unit">M</span></div>
+      <div class="metric-label">${last.severity?.toUpperCase()} · ${timeAgo(last.timestamp * 1000)}${distInfo}</div>`;
   }
 
   // Table
   const tbody = document.getElementById('eq-table-body');
   if (!alerts.length) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">🌍</div>No events detected yet</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">🌍</div>No events detected yet</div></td></tr>`;
     return;
   }
   tbody.innerHTML = alerts.slice(0,10).map(a => {
-    const mag = a.estimated_magnitude;
+    const mag = a.estimated_magnitude || a.usgs_magnitude;
     const magCls = !mag ? 'low' : mag < 3 ? 'low' : mag < 5 ? 'mid' : 'high';
+    const distStr = a.distance_miles != null ? `${a.distance_miles.toFixed(0)} mi` : '—';
+    const distCls = a.distance_class || '—';
+    const srcIcon = a.data_source === 'fused' ? '🔗' : a.data_source === 'usgs' ? '🌐' : '📡';
+    const srcLabel = a.data_source === 'fused' ? 'Fused' : a.data_source === 'usgs' ? 'USGS' : 'RS4D';
     return `<tr>
       <td style="font-family:var(--mono);font-size:12px">${new Date(a.timestamp*1000).toLocaleString()}</td>
       <td><span class="sev-dot ${a.severity}"></span>${a.severity}</td>
       <td><span class="mag-chip ${magCls}">${mag?.toFixed(1) ?? '—'}</span></td>
+      <td style="font-size:12px">${distStr}<br><span style="color:var(--text3);font-size:11px">${distCls}</span></td>
+      <td style="font-size:12px">${srcIcon} ${srcLabel}</td>
       <td style="font-family:var(--mono)">${a.sta_lta_ratio?.toFixed(2) ?? '—'}</td>
       <td style="font-family:var(--mono)">${a.seconds_until_s_wave ? a.seconds_until_s_wave.toFixed(1)+'s' : '—'}</td>
       <td style="color:var(--text2)">${a.status ?? '—'}</td>
